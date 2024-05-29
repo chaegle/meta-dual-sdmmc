@@ -1,0 +1,144 @@
+From 98aeb7d642819ed77ce7b8073eb42892e8c9dde1 Mon Sep 17 00:00:00 2001
+From: Cameron Haegle <cameronh@digi.com>
+Date: Wed, 29 May 2024 14:38:41 -0500
+Subject: [PATCH] ccmp13 kernel Enable 8-bit eMMC (sdmmc1) and microSD (sdmmc2)
+
+---
+ arch/arm/boot/dts/ccmp133-dvk.dts | 95 ++++++++++++++++++++++++++++---
+ 1 file changed, 88 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/boot/dts/ccmp133-dvk.dts b/arch/arm/boot/dts/ccmp133-dvk.dts
+index 6e5fbda26bd1..f4276e6d820a 100644
+--- a/arch/arm/boot/dts/ccmp133-dvk.dts
++++ b/arch/arm/boot/dts/ccmp133-dvk.dts
+@@ -27,7 +27,6 @@ / {
+ 	aliases {
+ 		ethernet0 = &eth1;
+ 		ethernet1 = &eth2;
+-		mmc1 = &sdmmc1; /* Micro SD */
+ 		serial0 = &uart5;
+ 		serial1 = &usart1;
+ 		serial2 = &uart8;
+@@ -244,19 +243,38 @@ pcie {
+ 	};
+ };
+ 
+-/* Micro SD */
++/* eMMC */
+ &sdmmc1 {
++        pinctrl-names = "default", "opendrain", "sleep";
++        pinctrl-0 = <&ccmp13_sdmmc1_b8_pins_a &ccmp13_sdmmc1_clk_pins_a>;
++        pinctrl-1 = <&ccmp13_sdmmc1_b8_od_pins_a &ccmp13_sdmmc1_clk_pins_a>;
++        pinctrl-2 = <&ccmp13_sdmmc1_b8_sleep_pins_a>;
++	bus-width = <8>;
++        no-1-8-v;
++        no-sd;
++        no-sdio;
++        non-removable;
++        st,neg-edge;
++        vmmc-supply = <&scmi_vdd>;
++        vqmmc-supply = <&scmi_vdd_sd>;
++        status = "okay";
++};
++
++/* Micro SD */
++&sdmmc2 {
+ 	pinctrl-names = "default", "opendrain", "sleep";
+-	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_clk_pins_a>;
+-	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_clk_pins_a>;
+-	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a>;
+-	broken-cd;
++	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_clk_pins_a>;
++	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_clk_pins_a>;
++	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a>;
++	cd-gpios = <&gpioe 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+ 	disable-wp;
+ 	st,neg-edge;
+ 	bus-width = <4>;
+ 	no-1-8-v;
+ 	vmmc-supply = <&scmi_vdd>;
+ 	vqmmc-supply = <&scmi_vdd_sd>;
++	#address-cells = <1>;
++        #size-cells = <0>;
+ 	status = "okay";
+ };
+ 
+@@ -430,7 +448,7 @@ &m_can2 {
+ 	pinctrl-names = "default", "sleep";
+ 	pinctrl-0 = <&ccmp13_can2_pins_a>;
+ 	pinctrl-1 = <&ccmp13_can2_sleep_pins_a>;
+-	status = "okay";
++	status = "disabled"; /* Conflicts with SDMMC1_D6 */
+ };
+ 
+ /* RS485 */
+@@ -444,6 +462,69 @@ &usart3 {
+ };
+ 
+ &pinctrl {
++
++	ccmp13_sdmmc1_b8_pins_a: ccmp13-sdmmc1-b8-pins {
++                pins {
++                        pinmux = <STM32_PINMUX('D',  2, AF12)>, /* SDMMC1_CMD */
++                                         <STM32_PINMUX('C',  8, AF12)>, /* SDMMC1_D0 */
++                                         <STM32_PINMUX('C',  9, AF12)>, /* SDMMC1_D1 */
++                                         <STM32_PINMUX('C', 10, AF12)>, /* SDMMC1_D2 */
++                                         <STM32_PINMUX('C', 11, AF12)>, /* SDMMC1_D3 */
++                                         <STM32_PINMUX('H', 10, AF8)>, /* SDMMC1_D4 */
++                                         <STM32_PINMUX('B', 12, AF12)>, /* SDMMC1_D5 */
++                                         <STM32_PINMUX('C',  6,  AF8)>, /* SDMMC1_D6 */
++                                         <STM32_PINMUX('C',  7, AF12)>; /* SDMMC1_D7 */
++                        drive-push-pull;
++                        bias-pull-up;
++                        slew-rate = <1>;
++                };
++        };
++
++        ccmp13_sdmmc1_clk_pins_a: sdmmc1-clk-0 {
++                pins {
++                        pinmux = <STM32_PINMUX('C', 12, AF12)>; /* SDMMC1_CLK */
++                        slew-rate = <1>;
++                        drive-push-pull;
++                        bias-pull-up;
++                };
++        };
++
++	ccmp13_sdmmc1_b8_od_pins_a: ccmp13-sdmmc1-b8-od-pins {
++                pins1 {
++                        pinmux = <STM32_PINMUX('C',  8, AF12)>, /* SDMMC1_D0 */
++                                         <STM32_PINMUX('C',  9, AF12)>, /* SDMMC1_D1 */
++                                         <STM32_PINMUX('C', 10, AF12)>, /* SDMMC1_D2 */
++                                         <STM32_PINMUX('C', 11, AF12)>, /* SDMMC1_D3 */
++                                         <STM32_PINMUX('H', 10, AF8)>, /* SDMMC1_D4 */
++                                         <STM32_PINMUX('B', 12, AF12)>, /* SDMMC1_D5 */
++                                         <STM32_PINMUX('C',  6, AF8)>, /* SDMMC1_D6 */
++                                         <STM32_PINMUX('C',  7, AF12)>; /* SDMMC1_D7 */
++                        slew-rate = <1>;
++                        drive-push-pull;
++                        bias-pull-up;
++                };
++                pins2 {
++                        pinmux = <STM32_PINMUX('D', 2, AF12)>; /* SDMMC1_CMD */
++                        slew-rate = <1>;
++                        drive-open-drain;
++                        bias-pull-up;
++                };
++        };
++        ccmp13_sdmmc1_b8_sleep_pins_a: ccmp13-sdmmc1-b8-sleep-pins {
++                pins {
++                        pinmux = <STM32_PINMUX('C', 12, ANALOG)>, /* SDMMC1_CLK */
++                                         <STM32_PINMUX('D',  2, ANALOG)>, /* SDMMC1_CMD */
++                                         <STM32_PINMUX('C',  8, ANALOG)>, /* SDMMC1_D0 */
++                                         <STM32_PINMUX('C',  9, ANALOG)>, /* SDMMC1_D1 */
++                                         <STM32_PINMUX('C', 10, ANALOG)>, /* SDMMC1_D2 */
++                                         <STM32_PINMUX('C', 11, ANALOG)>, /* SDMMC1_D3 */
++                                         <STM32_PINMUX('H', 10, ANALOG)>, /* SDMMC1_D4 */
++                                         <STM32_PINMUX('B', 12, ANALOG)>, /* SDMMC1_D5 */
++                                         <STM32_PINMUX('C',  6, ANALOG)>, /* SDMMC1_D6 */
++                                         <STM32_PINMUX('C',  7, ANALOG)>; /* SDMMC1_D7 */
++                };
++        };
++
+ 	ccmp13_adc1_pins: ccmp13_adc1-pins-0 {
+ 		pins {
+ 			pinmux = <STM32_PINMUX('A', 5, ANALOG)>; /* ADC1 in2 */
